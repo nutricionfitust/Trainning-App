@@ -103,6 +103,15 @@
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50}
   .modal{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(520px,92vw);max-height:90vh;overflow:auto}
   .name-preview{font-size:13px;color:var(--ok);margin-top:6px}
+  .combo-list{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;max-height:240px;overflow:auto;z-index:20;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .combo-list::-webkit-scrollbar{width:6px}
+  .combo-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .combo-item{padding:9px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .combo-item:last-child{border-bottom:none}
+  .combo-item:hover{background:var(--surface)}
+  .combo-new{color:var(--blue-2);font-weight:600}
+  .rt-open{flex:1;cursor:pointer}
+  .rt-open:hover .nm{color:var(--blue-2)}
 </style>
 </head>
 <body>
@@ -156,9 +165,10 @@
       <div class="card" style="margin-bottom:16px">
         <h2>Datos de la rutina</h2>
         <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <label>Alumno</label>
-            <select class="field" id="alumnoSel"></select>
+          <div style="position:relative">
+            <label>Alumno (escribí para buscar)</label>
+            <input class="field" id="alumnoInput" placeholder="Buscar o elegir alumno…" autocomplete="off">
+            <div class="combo-list hidden" id="alumnoList"></div>
           </div>
           <div>
             <label>Contraseña de esta rutina (única)</label>
@@ -183,10 +193,9 @@
         <button class="btn ghost" id="addDia">+ Agregar día</button>
         <hr style="border:none;border-top:1px solid var(--line);margin:18px 0 14px">
         <div class="row">
-          <button class="btn" id="saveBtn">Guardar rutina</button>
-          <button class="btn ghost" id="newBtn">Limpiar / nueva</button>
+          <button class="btn ghost" id="newBtn">Limpiar / nueva rutina</button>
           <span class="sp" style="flex:1"></span>
-          <button class="btn ghost sm" id="previewBtn">Ver JSON</button>
+          <button class="btn" id="saveBtn">Guardar rutina</button>
         </div>
       </div>
 
@@ -321,10 +330,9 @@ function openExModal(ex){
     <label>Descripción (la que ve el alumno)</label>
     <textarea class="field" id="exDesc" rows="4">${ex?escapeHtml(ex.descripcion||''):''}</textarea>
     <div class="row" style="margin-top:14px">
-      <button class="btn" id="exSave">${isEdit?'Guardar cambios':'Crear ejercicio'}</button>
       <button class="btn ghost" id="exCancel">Cancelar</button>
       <span class="sp" style="flex:1"></span>
-      ${isEdit?'<button class="btn danger sm" id="exDel">Borrar</button>':''}
+      <button class="btn" id="exSave">${isEdit?'Guardar cambios':'Crear ejercicio'}</button>
     </div>
     <p class="hint" style="margin-bottom:0">Si actualizás un video en Drive y el link no cambia, no hace falta tocar nada. Si cambia el link, lo pegás acá.</p>
   </div></div>`;
@@ -339,42 +347,56 @@ function openExModal(ex){
     if(error){toast('Error: '+error.message,'err');return;}
     toast('Ejercicio guardado ✓','ok'); close(); await loadEjercicios();
   };
-  if(isEdit){
-    document.getElementById('exDel').onclick=async()=>{
-      if(!confirm('¿Borrar este ejercicio del catálogo?'))return;
-      const {error}=await sb.from('ejercicios').delete().eq('nombre',ex.nombre);
-      if(error){toast('Error: '+error.message,'err');return;}
-      toast('Ejercicio borrado.','ok'); close(); await loadEjercicios();
-    };
-  }
 }
 
-/* ---------- alumnos ---------- */
+/* ---------- alumnos (buscador) ---------- */
+let selAlumno=null; // null | '__new__' | objeto alumno
+const aInput=()=>document.getElementById('alumnoInput');
+const aList=()=>document.getElementById('alumnoList');
+
 async function loadAlumnos(){
   const {data,error}=await sb.from('alumnos').select('*').order('nombre');
   if(error){toast('Error cargando alumnos: '+error.message,'err');return;}
   ALUMNOS=data||[];
-  document.getElementById('alumnoSel').innerHTML='<option value="">— Elegí un alumno —</option>'+
-    ALUMNOS.map(a=>`<option value="${a.id}">${escapeHtml(a.nombre)} (${escapeHtml(a.password)})</option>`).join('')+
-    '<option value="__new__">➕ Crear alumno nuevo…</option>';
+  if(aList()&&!aList().classList.contains('hidden')) renderAlumnoList();
 }
-document.getElementById('alumnoSel').onchange=async(e)=>{
-  const v=e.target.value;
-  editId=null;
+function renderAlumnoList(){
+  const q=norm(aInput().value);
+  const matches=ALUMNOS.filter(a=>!q||norm(a.nombre).includes(q));
+  let html=matches.map(a=>`<div class="combo-item" data-id="${a.id}">${escapeHtml(a.nombre)}</div>`).join('');
+  html+=`<div class="combo-item combo-new" data-new="1">➕ Crear alumno nuevo…</div>`;
+  aList().innerHTML=html;
+  aList().querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>chooseAlumno(ALUMNOS.find(x=>x.id==el.dataset.id)));
+  aList().querySelector('[data-new]').onclick=()=>chooseAlumno('__new__');
+}
+function openAlumnoList(){renderAlumnoList();aList().classList.remove('hidden');}
+function closeAlumnoList(){aList()&&aList().classList.add('hidden');}
+
+async function chooseAlumno(v){
+  selAlumno=v; editId=null;
   document.getElementById('rutinaPass').value='';
-  document.getElementById('nuevoAlumnoBox').classList.toggle('hidden', v!=='__new__');
-  if(v==='__new__'){ document.getElementById('naNombre').value='';document.getElementById('naCarpeta').value=''; }
-  updateNamePreview();
-  if(v&&v!=='__new__'){await loadSavedRutinas(v);}
-  else{document.getElementById('savedList').innerHTML='<p class="empty">'+(v==='__new__'?'Completá los datos del alumno nuevo abajo.':'Elegí un alumno para ver sus rutinas.')+'</p>'; RUTINAS_ALUMNO=[]; updateRutinaNum();}
-};
+  closeAlumnoList();
+  if(v==='__new__'){
+    aInput().value='';
+    document.getElementById('nuevoAlumnoBox').classList.remove('hidden');
+    document.getElementById('naNombre').value='';document.getElementById('naCarpeta').value='';
+    document.getElementById('savedList').innerHTML='<p class="empty">Completá los datos del alumno nuevo abajo.</p>';
+    RUTINAS_ALUMNO=[]; updateNamePreview(); return;
+  }
+  document.getElementById('nuevoAlumnoBox').classList.add('hidden');
+  if(v){ aInput().value=v.nombre; updateNamePreview(); await loadSavedRutinas(v.id); }
+  else { aInput().value=''; document.getElementById('savedList').innerHTML='<p class="empty">Elegí un alumno para ver sus rutinas.</p>'; RUTINAS_ALUMNO=[]; updateNamePreview(); }
+}
+aInput().addEventListener('focus',openAlumnoList);
+aInput().addEventListener('input',()=>{selAlumno=null;updateNamePreview();openAlumnoList();});
+document.addEventListener('click',(e)=>{ if(!e.target.closest('#alumnoInput')&&!e.target.closest('#alumnoList')) closeAlumnoList(); });
+
 document.getElementById('apodo').oninput=updateNamePreview;
 document.getElementById('naNombre')&&(document.getElementById('naNombre').oninput=updateNamePreview);
 
 function currentAlumnoNombre(){
-  const v=val('alumnoSel');
-  if(v==='__new__') return val('naNombre').trim();
-  const a=ALUMNOS.find(x=>x.id==v); return a?a.nombre:'';
+  if(selAlumno==='__new__') return val('naNombre').trim();
+  return selAlumno?selAlumno.nombre:'';
 }
 function buildRutinaNombre(){
   const apodo=val('apodo').trim();
@@ -395,14 +417,20 @@ async function loadSavedRutinas(alumnoId){
   const a=ALUMNOS.find(x=>x.id==alumnoId);
   const head=a?`<div class="alumno-head"><b>${escapeHtml(a.nombre)}</b><br>Carpeta: ${escapeHtml(a.carpeta||'—')} · ${RUTINAS_ALUMNO.length} rutina(s)</div>`:'';
   if(error){box.innerHTML=head+'<p class="empty">Error: '+error.message+'</p>';return;}
-  if(!RUTINAS_ALUMNO.length){box.innerHTML=head+'<p class="empty">Todavía no tiene rutinas. Esta será la N°1.</p>';updateRutinaNum();return;}
-  box.innerHTML=head+RUTINAS_ALUMNO.map((r,i)=>`<div class="it"><span class="num-pill">N°${i+1}</span><span class="nm">${escapeHtml(r.nombre)}<br><span class="mono" style="font-size:11px;color:var(--muted)">🔑 ${escapeHtml(r.password||'—')}</span></span>
-      <button class="btn ghost sm" data-edit="${r.id}">Editar</button>
-      <button class="btn danger sm" data-del="${r.id}">Borrar</button></div>`).join('');
+  if(!RUTINAS_ALUMNO.length){box.innerHTML=head+'<p class="empty">Todavía no tiene rutinas. Esta será la N°1.</p>'+newBtnHtml();wireNew(box,alumnoId);updateRutinaNum();return;}
+  box.innerHTML=head+'<p class="hint" style="margin:0 0 8px">Tocá una rutina para abrirla y modificarla, o creá una nueva.</p>'+
+    RUTINAS_ALUMNO.map((r,i)=>`<div class="it">
+      <span class="rt-open" data-open="${r.id}"><span class="num-pill">N°${i+1}</span><span class="nm">${escapeHtml(r.nombre)}</span><br><span class="mono" style="font-size:11px;color:var(--muted)">🔑 ${escapeHtml(r.password||'—')}</span></span>
+      <button class="btn ghost sm" data-edit="${r.id}">Abrir</button>
+      <button class="btn danger sm" data-del="${r.id}">Borrar</button></div>`).join('')+newBtnHtml();
+  box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>loadRutinaForEdit(RUTINAS_ALUMNO.find(r=>r.id==b.dataset.open)));
   box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadRutinaForEdit(RUTINAS_ALUMNO.find(r=>r.id==b.dataset.edit)));
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delRutina(b.dataset.del,alumnoId));
+  wireNew(box,alumnoId);
   updateRutinaNum();
 }
+function newBtnHtml(){return '<button class="btn ghost sm" id="newRutinaForAlumno" style="margin-top:8px">➕ Nueva rutina para este alumno</button>';}
+function wireNew(box,alumnoId){const b=box.querySelector('#newRutinaForAlumno');if(b)b.onclick=()=>{newRutina();toast('Nueva rutina para este alumno.','ok');};}
 function updateRutinaNum(){
   const el=document.getElementById('rutinaNumInfo');
   const nom=currentAlumnoNombre();
@@ -471,7 +499,7 @@ function renderDias(){
       const libre=SECCIONES.find(s=>!usados.includes(s))||SECCIONES[1];
       dia.secciones.push(blankSec(libre));renderDias();
     };
-    d.querySelector('[data-deldia]').onclick=()=>{if(confirm('¿Borrar el día completo?')){plan.dias.splice(di,1);activeSec=null;combineTarget=null;renderDias();}};
+    d.querySelector('[data-deldia]').onclick=()=>{plan.dias.splice(di,1);activeSec=null;combineTarget=null;renderDias();};
 
     dia.secciones.forEach((sec,si)=>{
       const isActive=activeSec&&activeSec.di===di&&activeSec.si===si;
@@ -488,7 +516,7 @@ function renderDias(){
         else{activeSec={di,si};}
         combineTarget=null;renderDias();
       };
-      s.querySelector('[data-delsec]').onclick=()=>{if(confirm('¿Borrar la sección?')){dia.secciones.splice(si,1);activeSec=null;combineTarget=null;renderDias();}};
+      s.querySelector('[data-delsec]').onclick=()=>{dia.secciones.splice(si,1);activeSec=null;combineTarget=null;renderDias();};
 
       const itemsBox=document.createElement('div');
       if(!sec.items.length){itemsBox.innerHTML='<p class="empty">Marcá esta sección como activa y agregá ejercicios desde el catálogo →</p>';}
@@ -562,7 +590,7 @@ function addExerciseToActive(nombre){
 /* ---------- guardar ---------- */
 document.getElementById('saveBtn').onclick=saveRutina;
 async function saveRutina(){
-  let alumnoId=val('alumnoSel');
+  let alumnoId = (selAlumno==='__new__')?'__new__':(selAlumno&&selAlumno.id?selAlumno.id:null);
   const rutinaPass=val('rutinaPass').trim();
   if(!rutinaPass){toast('Poné una contraseña para esta rutina.','err');return;}
   if(alumnoId==='__new__'){
@@ -572,7 +600,7 @@ async function saveRutina(){
     const {data,error}=await sb.from('alumnos').insert(na).select().single();
     if(error){toast('Error creando alumno: '+error.message,'err');return;}
     alumnoId=data.id; await loadAlumnos();
-    document.getElementById('alumnoSel').value=alumnoId;
+    selAlumno=data; aInput().value=data.nombre;
     document.getElementById('nuevoAlumnoBox').classList.add('hidden');
     document.getElementById('naNombre').value='';document.getElementById('naCarpeta').value='';
   }
@@ -606,7 +634,7 @@ function newRutina(){
   document.getElementById('rutinaPass').value='';
   renderDias();updateNamePreview();updateRutinaNum();toast('Listo para una rutina nueva.','ok');
 }
-document.getElementById('previewBtn').onclick=()=>alert(JSON.stringify(plan,null,2));
+document.getElementById('previewBtn')&&(document.getElementById('previewBtn').onclick=()=>{});
 
 /* ---------- helpers ---------- */
 function val(id){const el=document.getElementById(id);return el?el.value:'';}
