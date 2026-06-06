@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Armador de Rutinas · NFU</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#0072FB; --blue-2:#6EA4FB; --blue-3:#99C5FF;
+    --bg:#0d1118; --surface:#161c26; --surface-2:#1e2632; --line:#2a3442;
+    --txt:#e8edf4; --muted:#8b97a8; --ok:#39c07a; --danger:#e2615a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit}
+  .mono{font-family:'DM Mono',monospace}
+  a{color:var(--blue-2)}
+
+  /* layout */
+  .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:12px 20px;background:rgba(13,17,24,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .brand{font-weight:800;letter-spacing:.3px}
+  .brand span{color:var(--blue)}
+  .topbar .sp{flex:1}
+  .pill{font-size:12px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);padding:5px 10px;border-radius:999px}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .card h2{margin:0 0 12px;font-size:14px;font-weight:700;letter-spacing:.2px}
+  .card h2 small{font-weight:500;color:var(--muted)}
+
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+  .field{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--txt);padding:10px 11px;border-radius:10px;font-size:14px}
+  .field:focus{outline:none;border-color:var(--blue)}
+  .btn{background:var(--blue);color:#fff;border:none;padding:10px 15px;border-radius:10px;font-weight:700;font-size:14px}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);font-weight:600}
+  .btn.ghost:hover{border-color:var(--blue-2)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.danger{background:transparent;border:1px solid var(--line);color:var(--danger)}
+  .row{display:flex;gap:8px;align-items:center}
+  .muted{color:var(--muted)}
+
+  /* catalogo */
+  .filters{display:flex;gap:8px;margin-bottom:10px}
+  .filters .field{flex:1}
+  .cat-list{max-height:62vh;overflow:auto;padding-right:4px}
+  .cat-group{margin-bottom:6px}
+  .cat-group-h{position:sticky;top:0;background:var(--surface);font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-3);padding:6px 2px}
+  .ex{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;border:1px solid transparent}
+  .ex:hover{background:var(--surface-2);border-color:var(--line)}
+  .ex .nm{flex:1;font-size:13px}
+  .ex .vid{font-size:10px}
+  .ex .vid.no{color:var(--danger)}
+  .ex .vid.yes{color:var(--ok)}
+  .add{background:var(--blue);color:#fff;border:none;width:26px;height:26px;border-radius:8px;font-size:16px;line-height:1;flex:none}
+
+  /* dias / secciones */
+  .dia{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .dia-h{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--surface-2)}
+  .dia-h .field{flex:1;font-weight:700}
+  .sec{padding:10px 12px;border-top:1px solid var(--line)}
+  .sec-h{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .sec-h .field{flex:1}
+  .item{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:8px}
+  .item.superset{border-left:3px solid var(--blue)}
+  .item-tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--blue-3);margin-bottom:6px;display:flex;gap:8px;align-items:center}
+  .exrow{display:grid;grid-template-columns:1fr 64px 1fr 24px;gap:7px;align-items:center;margin-bottom:6px}
+  .exrow .nm{font-size:13px}
+  .exrow .field{padding:7px 8px;font-size:13px}
+  .x{background:transparent;border:none;color:var(--muted);font-size:16px}
+  .x:hover{color:var(--danger)}
+  .item-foot{display:flex;gap:8px;align-items:center;margin-top:4px}
+  .item-foot .rest{width:120px}
+  .empty{color:var(--muted);font-size:13px;padding:8px;text-align:center;border:1px dashed var(--line);border-radius:9px}
+
+  /* picker target highlight */
+  .sec.active{box-shadow:inset 0 0 0 2px var(--blue)}
+
+  /* toast */
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+  #toast.show{opacity:1}
+  #toast.ok{border-color:var(--ok)} #toast.err{border-color:var(--danger)}
+
+  /* gate */
+  .gate{max-width:420px;margin:8vh auto;}
+  .hidden{display:none!important}
+  .saved-list .it{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px}
+  .saved-list .it .nm{flex:1;font-size:13px}
+  .saved-list .it .who{font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Nutrición<span>Fit</span> · Armador de Rutinas</div>
+  <div class="sp"></div>
+  <span class="pill" id="userPill"></span>
+  <button class="btn ghost sm hidden" id="logoutBtn">Salir</button>
+</div>
+
+<!-- ========== PANTALLA DE CONEXIÓN / LOGIN ========== -->
+<div class="wrap" id="gateWrap">
+  <div class="gate card">
+    <h2>Conectar con Supabase</h2>
+    <p class="muted" style="margin-top:0;font-size:13px">Pegá la URL y la <b>anon key</b> de tu proyecto (Supabase → Project Settings → API). Se guardan en este navegador, no las vuelves a escribir.</p>
+    <label>Project URL</label>
+    <input class="field mono" id="supaUrl" placeholder="https://xxxxx.supabase.co">
+    <label>anon public key</label>
+    <input class="field mono" id="supaKey" placeholder="eyJhbGci...">
+    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+    <label>Tu email de entrenador</label>
+    <input class="field" id="email" type="email" placeholder="nutricionfit.ust@gmail.com">
+    <label>Contraseña</label>
+    <input class="field" id="pass" type="password" placeholder="••••••••">
+    <div style="margin-top:14px" class="row">
+      <button class="btn" id="loginBtn">Entrar</button>
+      <span class="muted" id="gateMsg" style="font-size:12px"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== APP ========== -->
+<div class="wrap hidden" id="app">
+  <div class="grid">
+
+    <!-- CATALOGO -->
+    <div class="card">
+      <h2>Catálogo de ejercicios <small id="catCount"></small></h2>
+      <div class="filters">
+        <input class="field" id="search" placeholder="Buscar ejercicio…">
+        <select class="field" id="groupFilter" style="max-width:130px"></select>
+      </div>
+      <p class="muted" style="font-size:12px;margin:0 0 8px">Clic en <b>＋</b> para agregar a la sección activa (la que tiene borde azul).</p>
+      <div class="cat-list" id="catList"></div>
+    </div>
+
+    <!-- EDITOR -->
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Datos de la rutina</h2>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label>Alumno</label>
+            <select class="field" id="alumnoSel"></select>
+          </div>
+          <div>
+            <label>Nombre de la rutina (lo ve el alumno)</label>
+            <input class="field" id="rutinaNombre" placeholder="👉🏻 esta es tu rutina de PIERNAS 💪🏻🔥">
+          </div>
+        </div>
+        <div id="nuevoAlumnoBox" class="hidden" style="margin-top:10px;padding:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px">
+          <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div><label>Nombre del alumno</label><input class="field" id="naNombre" placeholder="Juan Pérez"></div>
+            <div><label>Contraseña de acceso (única)</label><input class="field mono" id="naPass" placeholder="clave-unica-123"></div>
+            <div><label>Carpeta / plan</label><input class="field" id="naCarpeta" placeholder="5 MUSCULACIÓN + 2 HIIT"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Plan de entrenamiento</h2>
+        <div id="dias"></div>
+        <button class="btn ghost" id="addDia">+ Agregar día</button>
+        <hr style="border:none;border-top:1px solid var(--line);margin:18px 0 14px">
+        <div class="row">
+          <button class="btn" id="saveBtn">Guardar rutina</button>
+          <button class="btn ghost" id="newBtn">Limpiar / nueva</button>
+          <span class="sp" style="flex:1"></span>
+          <button class="btn ghost sm" id="previewBtn">Ver JSON</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>Rutinas del alumno seleccionado</h2>
+        <div class="saved-list" id="savedList"><p class="empty">Elegí un alumno para ver sus rutinas.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ---------- almacenamiento seguro (no rompe si está en sandbox) ---------- */
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+let sb = null;            // cliente supabase
+let EJERCICIOS = [];      // catálogo
+let ALUMNOS = [];
+let activeSec = null;     // {diaIdx, secIdx} sección activa para el picker
+let editId = null;        // id de rutina en edición (null = nueva)
+
+const GRUPOS_LABEL = {
+  piernas_general:'Piernas (general)', cuadriceps:'Cuádriceps', gluteos:'Glúteos',
+  isquiotibiales:'Isquiotibiales', pantorrillas:'Pantorrillas', pectorales:'Pectorales',
+  espalda:'Espalda', hombros:'Hombros', biceps:'Bíceps', triceps:'Tríceps',
+  antebrazos:'Antebrazos', core:'Core', full_body:'Full body', cardio:'Cardio',
+  pliometria:'Pliometría', weight_lifting:'Weight lifting', acondicionamiento:'Acondicionamiento'
+};
+
+/* modelo del plan en memoria */
+let plan = { dias: [] };
+
+/* ---------- toast ---------- */
+function toast(msg, type){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show '+(type||'');
+  setTimeout(()=>t.className='',2600);
+}
+
+/* ---------- login ---------- */
+document.getElementById('supaUrl').value = store.get('nfu_url')||'';
+document.getElementById('supaKey').value = store.get('nfu_key')||'';
+document.getElementById('email').value = store.get('nfu_email')||'';
+
+document.getElementById('loginBtn').onclick = async ()=>{
+  const url=document.getElementById('supaUrl').value.trim();
+  const key=document.getElementById('supaKey').value.trim();
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('pass').value;
+  const msg=document.getElementById('gateMsg');
+  if(!url||!key){ msg.textContent='Falta URL o key.'; return; }
+  try{
+    sb = supabase.createClient(url,key);
+    msg.textContent='Conectando…';
+    const {error} = await sb.auth.signInWithPassword({email,password:pass});
+    if(error){ msg.textContent='No se pudo entrar: '+error.message; return; }
+    store.set('nfu_url',url); store.set('nfu_key',key); store.set('nfu_email',email);
+    await startApp(email);
+  }catch(e){ msg.textContent='Error: '+e.message; }
+};
+
+document.getElementById('logoutBtn').onclick = async ()=>{
+  if(sb) await sb.auth.signOut();
+  location.reload();
+};
+
+/* reconexión automática si ya había sesión */
+(async ()=>{
+  const url=store.get('nfu_url'), key=store.get('nfu_key');
+  if(url&&key){
+    sb = supabase.createClient(url,key);
+    const {data}=await sb.auth.getSession();
+    if(data && data.session){ await startApp(data.session.user.email); }
+  }
+})();
+
+async function startApp(email){
+  document.getElementById('gateWrap').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('logoutBtn').classList.remove('hidden');
+  document.getElementById('userPill').textContent = email||'conectado';
+  await loadEjercicios();
+  await loadAlumnos();
+  if(plan.dias.length===0) addDia();
+}
+
+/* ---------- cargar catálogo ---------- */
+async function loadEjercicios(){
+  const {data,error}=await sb.from('ejercicios').select('*').order('grupo').order('nombre');
+  if(error){ toast('Error cargando ejercicios: '+error.message,'err'); return; }
+  EJERCICIOS=data||[];
+  document.getElementById('catCount').textContent='('+EJERCICIOS.length+')';
+  // filtro de grupos
+  const groups=[...new Set(EJERCICIOS.map(e=>e.grupo))];
+  const sel=document.getElementById('groupFilter');
+  sel.innerHTML='<option value="">Todos los grupos</option>'+
+    groups.map(g=>`<option value="${g}">${GRUPOS_LABEL[g]||g}</option>`).join('');
+  renderCatalog();
+}
+document.getElementById('search').oninput=renderCatalog;
+document.getElementById('groupFilter').onchange=renderCatalog;
+
+function renderCatalog(){
+  const q=document.getElementById('search').value.toLowerCase().trim();
+  const gf=document.getElementById('groupFilter').value;
+  const list=document.getElementById('catList');
+  const filtered=EJERCICIOS.filter(e=>
+    (!gf||e.grupo===gf) && (!q||e.nombre.toLowerCase().includes(q)));
+  const byGroup={};
+  filtered.forEach(e=>{(byGroup[e.grupo]=byGroup[e.grupo]||[]).push(e);});
+  let html='';
+  for(const g of Object.keys(byGroup)){
+    html+=`<div class="cat-group"><div class="cat-group-h">${GRUPOS_LABEL[g]||g}</div>`;
+    for(const e of byGroup[g]){
+      html+=`<div class="ex">
+        <span class="vid ${e.video_url?'yes':'no'}" title="${e.video_url?'Con video':'Sin video'}">●</span>
+        <span class="nm">${escapeHtml(e.nombre)}</span>
+        <button class="add" data-nombre="${escapeAttr(e.nombre)}">＋</button>
+      </div>`;
+    }
+    html+='</div>';
+  }
+  list.innerHTML=html||'<p class="empty">Sin resultados.</p>';
+  list.querySelectorAll('.add').forEach(b=>b.onclick=()=>addExerciseToActive(b.dataset.nombre));
+}
+
+/* ---------- alumnos ---------- */
+async function loadAlumnos(){
+  const {data,error}=await sb.from('alumnos').select('*').order('nombre');
+  if(error){ toast('Error cargando alumnos: '+error.message,'err'); return; }
+  ALUMNOS=data||[];
+  const sel=document.getElementById('alumnoSel');
+  sel.innerHTML='<option value="">— Elegí un alumno —</option>'+
+    ALUMNOS.map(a=>`<option value="${a.id}">${escapeHtml(a.nombre)} (${escapeHtml(a.password)})</option>`).join('')+
+    '<option value="__new__">➕ Crear alumno nuevo…</option>';
+}
+document.getElementById('alumnoSel').onchange=async (e)=>{
+  const v=e.target.value;
+  document.getElementById('nuevoAlumnoBox').classList.toggle('hidden', v!=='__new__');
+  if(v && v!=='__new__'){ await loadSavedRutinas(v); }
+  else { document.getElementById('savedList').innerHTML='<p class="empty">'+(v==='__new__'?'Completá los datos del alumno nuevo abajo.':'Elegí un alumno para ver sus rutinas.')+'</p>'; }
+};
+
+async function loadSavedRutinas(alumnoId){
+  const {data,error}=await sb.from('rutinas').select('*').eq('alumno_id',alumnoId).order('creado_en',{ascending:false});
+  const box=document.getElementById('savedList');
+  if(error){ box.innerHTML='<p class="empty">Error: '+error.message+'</p>'; return; }
+  if(!data||!data.length){ box.innerHTML='<p class="empty">Este alumno todavía no tiene rutinas.</p>'; return; }
+  box.innerHTML=data.map(r=>`<div class="it">
+      <span class="nm">${escapeHtml(r.nombre)}</span>
+      <button class="btn ghost sm" data-edit="${r.id}">Editar</button>
+      <button class="btn danger sm" data-del="${r.id}">Borrar</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadRutinaForEdit(data.find(r=>r.id==b.dataset.edit)));
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delRutina(b.dataset.del,alumnoId));
+}
+
+function loadRutinaForEdit(r){
+  editId=r.id;
+  document.getElementById('rutinaNombre').value=r.nombre||'';
+  plan = (r.plan && r.plan.dias) ? r.plan : {dias:[]};
+  if(plan.dias.length===0) plan.dias.push(blankDia());
+  renderDias();
+  toast('Rutina cargada para editar.','ok');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function delRutina(id,alumnoId){
+  if(!confirm('¿Borrar esta rutina? No se puede deshacer.')) return;
+  const {error}=await sb.from('rutinas').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'err'); return; }
+  toast('Rutina borrada.','ok');
+  if(editId==id){ newRutina(); }
+  loadSavedRutinas(alumnoId);
+}
+
+/* ---------- editor de plan ---------- */
+function blankDia(){ return {nombre:'', secciones:[blankSec()]}; }
+function blankSec(){ return {nombre:'Entrenamiento de Fuerza', items:[]}; }
+
+document.getElementById('addDia').onclick=()=>addDia();
+function addDia(){ plan.dias.push(blankDia()); renderDias(); }
+
+function renderDias(){
+  const wrap=document.getElementById('dias');
+  if(!plan.dias.length){ wrap.innerHTML='<p class="empty">Agregá tu primer día.</p>'; return; }
+  wrap.innerHTML='';
+  plan.dias.forEach((dia,di)=>{
+    const d=document.createElement('div'); d.className='dia';
+    d.innerHTML=`<div class="dia-h">
+      <input class="field" placeholder="Nombre del día (ej: Día 1 - Piernas)" value="${escapeAttr(dia.nombre)}">
+      <button class="btn ghost sm" data-addsec>+ Sección</button>
+      <button class="x" data-deldia title="Borrar día">🗑</button>
+    </div>`;
+    d.querySelector('.dia-h .field').oninput=e=>dia.nombre=e.target.value;
+    d.querySelector('[data-addsec]').onclick=()=>{dia.secciones.push(blankSec());renderDias();};
+    d.querySelector('[data-deldia]').onclick=()=>{if(confirm('¿Borrar el día completo?')){plan.dias.splice(di,1);if(activeSec&&activeSec.di===di)activeSec=null;renderDias();}};
+
+    dia.secciones.forEach((sec,si)=>{
+      const s=document.createElement('div'); s.className='sec';
+      if(activeSec&&activeSec.di===di&&activeSec.si===si) s.classList.add('active');
+      s.innerHTML=`<div class="sec-h">
+        <input class="field" placeholder="Nombre de la sección (ej: Acondicionamiento)" value="${escapeAttr(sec.nombre)}">
+        <button class="btn ${(activeSec&&activeSec.di===di&&activeSec.si===si)?'':'ghost'} sm" data-pick>${(activeSec&&activeSec.di===di&&activeSec.si===si)?'● Activa':'Elegir aquí'}</button>
+        <button class="x" data-delsec title="Borrar sección">🗑</button>
+      </div>`;
+      s.querySelector('.sec-h .field').oninput=e=>sec.nombre=e.target.value;
+      s.querySelector('[data-pick]').onclick=()=>{activeSec={di,si};renderDias();};
+      s.querySelector('[data-delsec]').onclick=()=>{if(confirm('¿Borrar la sección?')){dia.secciones.splice(si,1);activeSec=null;renderDias();}};
+
+      const itemsBox=document.createElement('div');
+      if(!sec.items.length){ itemsBox.innerHTML='<p class="empty">Marcá esta sección como activa y agregá ejercicios desde el catálogo →</p>'; }
+      sec.items.forEach((item,ii)=>{
+        const it=document.createElement('div'); it.className='item'+(item.tipo==='superset'?' superset':'');
+        let exHtml='';
+        item.ejercicios.forEach((ex,xi)=>{
+          exHtml+=`<div class="exrow">
+            <span class="nm">${escapeHtml(ex.nombre)}</span>
+            <input class="field" placeholder="series" value="${escapeAttr(ex.series||'')}" data-f="series" data-xi="${xi}">
+            <input class="field" placeholder="reps (ej: 12 10 8)" value="${escapeAttr(ex.reps||'')}" data-f="reps" data-xi="${xi}">
+            <button class="x" data-rmex="${xi}" title="Quitar">✕</button>
+          </div>`;
+        });
+        it.innerHTML=`<div class="item-tag">${item.tipo==='superset'?'🔗 Superserie':'Ejercicio'}
+            <button class="btn ghost sm" data-combine>+ combinar (superset)</button></div>
+          ${exHtml}
+          <div class="item-foot">
+            <span class="muted" style="font-size:12px">Descanso:</span>
+            <input class="field rest" placeholder="1-2min" value="${escapeAttr(item.descanso||'')}" data-rest>
+            <span class="sp" style="flex:1"></span>
+            <button class="x" data-rmitem title="Quitar bloque">🗑</button>
+          </div>`;
+        it.querySelectorAll('[data-f]').forEach(inp=>inp.oninput=e=>{
+          item.ejercicios[+inp.dataset.xi][inp.dataset.f]=e.target.value;
+        });
+        it.querySelectorAll('[data-rmex]').forEach(b=>b.onclick=()=>{
+          item.ejercicios.splice(+b.dataset.rmex,1);
+          if(item.ejercicios.length<=1)item.tipo='simple';
+          if(item.ejercicios.length===0)sec.items.splice(ii,1);
+          renderDias();
+        });
+        it.querySelector('[data-rest]').oninput=e=>item.descanso=e.target.value;
+        it.querySelector('[data-combine]').onclick=()=>{activeSec={di,si};combineTarget={di,si,ii};toast('Ahora clic en un ejercicio del catálogo para combinarlo.','ok');};
+        it.querySelector('[data-rmitem]').onclick=()=>{sec.items.splice(ii,1);renderDias();};
+        itemsBox.appendChild(it);
+      });
+      s.appendChild(itemsBox);
+      d.appendChild(s);
+    });
+    wrap.appendChild(d);
+  });
+}
+
+let combineTarget=null;
+function addExerciseToActive(nombre){
+  if(!activeSec){ toast('Primero marcá una sección como activa.','err'); return; }
+  const sec=plan.dias[activeSec.di].secciones[activeSec.si];
+  if(combineTarget && combineTarget.di===activeSec.di && combineTarget.si===activeSec.si){
+    const item=sec.items[combineTarget.ii];
+    item.tipo='superset';
+    item.ejercicios.push({nombre,series:'',reps:''});
+    combineTarget=null;
+  }else{
+    sec.items.push({tipo:'simple',ejercicios:[{nombre,series:'',reps:''}],descanso:''});
+  }
+  renderDias();
+}
+
+/* ---------- guardar ---------- */
+document.getElementById('saveBtn').onclick=saveRutina;
+async function saveRutina(){
+  const nombre=document.getElementById('rutinaNombre').value.trim();
+  if(!nombre){ toast('Poné un nombre a la rutina.','err'); return; }
+  let alumnoId=document.getElementById('alumnoSel').value;
+
+  // crear alumno si corresponde
+  if(alumnoId==='__new__'){
+    const na={
+      nombre:document.getElementById('naNombre').value.trim(),
+      password:document.getElementById('naPass').value.trim(),
+      carpeta:document.getElementById('naCarpeta').value.trim()||null
+    };
+    if(!na.nombre||!na.password){ toast('Faltan nombre y contraseña del alumno nuevo.','err'); return; }
+    const {data,error}=await sb.from('alumnos').insert(na).select().single();
+    if(error){ toast('Error creando alumno: '+error.message,'err'); return; }
+    alumnoId=data.id;
+    await loadAlumnos();
+    document.getElementById('alumnoSel').value=alumnoId;
+    document.getElementById('nuevoAlumnoBox').classList.add('hidden');
+  }
+  if(!alumnoId){ toast('Elegí o creá un alumno.','err'); return; }
+
+  const payload={alumno_id:Number(alumnoId), nombre, plan};
+  let res;
+  if(editId){ res=await sb.from('rutinas').update(payload).eq('id',editId).select().single(); }
+  else { res=await sb.from('rutinas').insert(payload).select().single(); }
+  if(res.error){ toast('Error al guardar: '+res.error.message,'err'); return; }
+  editId=res.data.id;
+  toast('Rutina guardada ✓','ok');
+  loadSavedRutinas(alumnoId);
+}
+
+document.getElementById('newBtn').onclick=newRutina;
+function newRutina(){
+  editId=null; activeSec=null; combineTarget=null;
+  plan={dias:[blankDia()]};
+  document.getElementById('rutinaNombre').value='';
+  renderDias();
+  toast('Listo para una rutina nueva.','ok');
+}
+
+document.getElementById('previewBtn').onclick=()=>{
+  alert(JSON.stringify(plan,null,2));
+};
+
+/* ---------- helpers ---------- */
+function escapeHtml(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function escapeAttr(s){return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+</script>
+</body>
+</html>
