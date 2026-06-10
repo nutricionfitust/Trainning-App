@@ -74,6 +74,20 @@
   .add{background:var(--blue);color:#fff;border:none;width:26px;height:26px;border-radius:8px;font-size:16px;line-height:1;flex:none;transition:transform .1s ease}
   .add:active{transform:scale(.85)}
 
+  /* video popover */
+  .vid-btn{background:transparent;border:none;font-size:14px;cursor:pointer;padding:2px;opacity:.5;transition:opacity .15s ease, transform .1s ease;flex:none}
+  .vid-btn:hover{opacity:1}
+  .vid-btn:active{transform:scale(.88)}
+  .vid-btn.no{pointer-events:none;opacity:.15}
+  #vidPopover{position:fixed;z-index:55;width:420px;max-width:92vw;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.45);opacity:0;transform:scale(.9);pointer-events:none;transition:opacity .25s cubic-bezier(.22,.61,.36,1), transform .25s cubic-bezier(.22,.61,.36,1)}
+  #vidPopover.open{opacity:1;transform:scale(1);pointer-events:auto}
+  #vidPopover .vp-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  #vidPopover .vp-head .vp-title{flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #vidPopover .vp-close{background:transparent;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 4px;border-radius:6px;transition:color .15s ease}
+  #vidPopover .vp-close:hover{color:var(--danger)}
+  #vidPopover iframe{display:block;width:100%;height:236px;border:none}
+  @media(max-width:500px){#vidPopover{width:94vw} #vidPopover iframe{height:200px}}
+
   @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   .dia{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden;animation:slideIn .25s ease-out}
   .dia-h{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--surface-2)}
@@ -238,6 +252,10 @@
 </div>
 
 <div id="toast"></div>
+<div id="vidPopover">
+  <div class="vp-head"><span class="vp-title" id="vpTitle"></span><button class="vp-close" id="vpClose">✕</button></div>
+  <iframe id="vpFrame" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+</div>
 <div id="modalHost"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -340,6 +358,7 @@ function renderCatalog(){
       html+=`<div class="ex" data-addnombre="${escapeAttr(e.nombre)}">
         <span class="vid ${e.video_url?'yes':'no'}" title="${e.video_url?'Con video':'Sin video'}">●</span>
         <span class="nm">${escapeHtml(e.nombre)}</span>
+        <button class="vid-btn ${e.video_url?'':'no'}" data-vidurl="${escapeAttr(e.video_url||'')}" data-vidname="${escapeAttr(e.nombre)}" title="${e.video_url?'Ver video':'Sin video'}">🎬</button>
         <button class="edit" data-edit="${escapeAttr(e.nombre)}" title="Editar / video">✎</button>
         <button class="add" data-nombre="${escapeAttr(e.nombre)}">＋</button>
       </div>`;
@@ -349,10 +368,62 @@ function renderCatalog(){
   list.innerHTML=html||'<p class="empty">Sin resultados.</p>';
   list.querySelectorAll('.add').forEach(b=>b.onclick=e=>{e.stopPropagation();addExerciseToActive(b.dataset.nombre);});
   list.querySelectorAll('.edit').forEach(b=>b.onclick=e=>{e.stopPropagation();openExModal(EJERCICIOS.find(x=>x.nombre===b.dataset.edit));});
+  list.querySelectorAll('.vid-btn:not(.no)').forEach(b=>b.onclick=e=>{e.stopPropagation();openVidPopover(b,b.dataset.vidurl,b.dataset.vidname);});
   list.querySelectorAll('.ex[data-addnombre]').forEach(el=>el.onclick=()=>addExerciseToActive(el.dataset.addnombre));
 }
 
 /* ---------- gestión de ejercicios / videos de Drive (cambio 11) ---------- */
+/* ---------- video popover ---------- */
+function driveEmbedUrl(url){
+  if(!url) return '';
+  // extract file ID from various Drive URL formats
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(m) return 'https://drive.google.com/file/d/'+m[1]+'/preview';
+  return url; // fallback
+}
+function openVidPopover(btn, url, name){
+  const pop=document.getElementById('vidPopover');
+  const frame=document.getElementById('vpFrame');
+  // if already open for same video, close
+  if(pop.classList.contains('open') && pop._currentUrl===url){ closeVidPopover(); return; }
+  // set content
+  document.getElementById('vpTitle').textContent=name||'Video';
+  const embedUrl=driveEmbedUrl(url);
+  frame.src=embedUrl;
+  pop._currentUrl=url;
+  // position near the button but keep in viewport
+  const rect=btn.getBoundingClientRect();
+  const pw=Math.min(420, window.innerWidth*0.92);
+  const ph=280; // approximate height
+  let left=rect.right+8;
+  let top=rect.top-20;
+  // if overflows right, put left of button
+  if(left+pw>window.innerWidth-10) left=rect.left-pw-8;
+  // if overflows left, center horizontally
+  if(left<10) left=Math.max(10,(window.innerWidth-pw)/2);
+  // if overflows bottom
+  if(top+ph>window.innerHeight-10) top=window.innerHeight-ph-10;
+  if(top<10) top=10;
+  pop.style.left=left+'px';
+  pop.style.top=top+'px';
+  pop.style.width=pw+'px';
+  requestAnimationFrame(()=>pop.classList.add('open'));
+}
+function closeVidPopover(){
+  const pop=document.getElementById('vidPopover');
+  pop.classList.remove('open');
+  pop._currentUrl=null;
+  // clear iframe after transition to stop video
+  setTimeout(()=>{ if(!pop.classList.contains('open')) document.getElementById('vpFrame').src=''; },300);
+}
+document.getElementById('vpClose').onclick=closeVidPopover;
+document.addEventListener('click',(e)=>{
+  const pop=document.getElementById('vidPopover');
+  if(pop.classList.contains('open') && !e.target.closest('#vidPopover') && !e.target.closest('.vid-btn')){
+    closeVidPopover();
+  }
+});
+
 document.getElementById('manageExBtn').onclick=()=>openExModal(null);
 
 /* ---------- botón Inicio: reinicia el armador ---------- */
