@@ -31,15 +31,15 @@
 
   /* mobile topbar menu */
   .mob-menu-btn{display:none;background:transparent;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:16px}
-  .mob-menu{display:none;position:absolute;right:12px;top:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:35;min-width:200px;box-shadow:0 12px 32px rgba(0,0,0,.3)}
-  .mob-menu.open{display:block}
+  .mob-menu{position:absolute;right:12px;top:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:35;min-width:200px;box-shadow:0 12px 32px rgba(0,0,0,.3);opacity:0;transform:translateY(-6px) scale(.95);pointer-events:none;transition:opacity .2s ease, transform .2s cubic-bezier(.22,.61,.36,1)}
+  .mob-menu.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
   .mob-menu a,.mob-menu button{display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--txt);padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
   .mob-menu a:hover,.mob-menu button:hover{background:var(--surface)}
 
   /* catalog drawer (mobile) */
   .cat-drawer-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:40;transition:background .25s ease}
   .cat-drawer-bg.open{display:block;background:rgba(0,0,0,.5)}
-  .cat-drawer{position:fixed;bottom:0;left:0;right:0;z-index:41;background:var(--surface);border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .35s cubic-bezier(.22,.61,.36,1);max-height:80vh;display:flex;flex-direction:column}
+  .cat-drawer{position:fixed;bottom:0;left:0;right:0;z-index:41;background:var(--surface);border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .35s cubic-bezier(.22,.61,.36,1);max-height:50vh;display:flex;flex-direction:column}
   .cat-drawer.open{transform:translateY(0)}
   .cat-drawer-handle{text-align:center;padding:10px;cursor:grab}
   .cat-drawer-handle span{display:inline-block;width:36px;height:4px;background:var(--line);border-radius:999px}
@@ -105,6 +105,7 @@
   .ex .edit:hover{color:var(--blue-2)}
   .add{background:var(--blue);color:#fff;border:none;width:26px;height:26px;border-radius:8px;font-size:16px;line-height:1;flex:none;transition:transform .1s ease}
   .add:active{transform:scale(.85)}
+  .add.ex-flash{animation:exFlash .4s ease-out}
 
   /* video popover */
   .vid-btn{background:transparent;border:none;font-size:14px;cursor:pointer;padding:2px;opacity:.5;transition:opacity .15s ease, transform .1s ease;flex:none}
@@ -156,6 +157,17 @@
   .item-foot .rest{width:120px}
   .empty{color:var(--muted);font-size:13px;padding:8px;text-align:center;border:1px dashed var(--line);border-radius:9px}
   .sec.active{box-shadow:0 0 0 2px var(--blue), 0 4px 18px rgba(0,114,251,.18);border-radius:14px;margin:6px;padding:14px;transform:scale(1.008);position:relative;z-index:2;background:var(--surface)}
+  .sec.sec-green{border-left:4px solid #34d399;background:rgba(209,250,229,.08)}
+  .sec.sec-green .sec-h select{color:#065f46}
+  .sec.sec-red{border-left:4px solid #f87171;background:rgba(254,202,202,.06)}
+  .sec.sec-red .sec-h select{color:#7f1d1d}
+  .sec.sec-yellow{border-left:4px solid #eab308;background:rgba(254,249,195,.08)}
+  .sec.sec-yellow .sec-h select{color:#854d0e}
+  .sec.sec-green .item{background:rgba(209,250,229,.15);border-color:rgba(52,211,153,.2)}
+  .sec.sec-red .item{background:rgba(254,202,202,.1);border-color:rgba(248,113,113,.15)}
+  .sec.sec-yellow .item{background:rgba(254,249,195,.15);border-color:rgba(234,179,8,.15)}
+  @keyframes exFlash{0%{box-shadow:0 0 0 0 rgba(0,114,251,.4)}60%{box-shadow:0 0 0 6px rgba(0,114,251,0)}100%{box-shadow:none}}
+  .ex-flash{animation:exFlash .4s ease-out}
   .hiit-info{margin-top:8px}
 
   #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--surface-2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;opacity:0;transition:opacity .3s cubic-bezier(.22,.61,.36,1), transform .3s cubic-bezier(.22,.61,.36,1);pointer-events:none;z-index:60}
@@ -422,7 +434,7 @@ function renderCatalog(){
     html+='</div>';
   }
   list.innerHTML=html||'<p class="empty">Sin resultados.</p>';
-  list.querySelectorAll('.add').forEach(b=>b.onclick=e=>{e.stopPropagation();addExerciseToActive(b.dataset.nombre);});
+  list.querySelectorAll('.add').forEach(b=>b.onclick=e=>{e.stopPropagation();addExerciseToActive(b.dataset.nombre);b.classList.add('ex-flash');setTimeout(()=>b.classList.remove('ex-flash'),400);});
   list.querySelectorAll('.edit').forEach(b=>b.onclick=e=>{e.stopPropagation();openExModal(EJERCICIOS.find(x=>x.nombre===b.dataset.edit));});
   list.querySelectorAll('.vid-btn:not(.no)').forEach(b=>b.onclick=e=>{e.stopPropagation();openVidPopover(b,b.dataset.vidurl,b.dataset.vidname);});
   list.querySelectorAll('.ex[data-addnombre]').forEach(el=>el.onclick=()=>addExerciseToActive(el.dataset.addnombre));
@@ -879,7 +891,8 @@ function renderDias(){
 
     dia.secciones.forEach((sec,si)=>{
       const isActive=activeSec&&activeSec.di===di&&activeSec.si===si;
-      const s=document.createElement('div');s.className='sec'+(isActive?' active':'');
+      const secColor=/acondicionamiento|calentamiento/i.test(sec.nombre)?'sec-green':/fuerza/i.test(sec.nombre)?'sec-red':/hiit/i.test(sec.nombre)?'sec-yellow':'';
+      const s=document.createElement('div');s.className='sec '+(isActive?'active ':'')+secColor;
       const opts=SECCIONES.map(n=>`<option value="${escapeAttr(n)}" ${sec.nombre===n?'selected':''}>${escapeHtml(n)}</option>`).join('');
       s.innerHTML=`<div class="sec-h">
         <select class="field" data-secname>${opts}</select>
@@ -1109,7 +1122,6 @@ function renderCatalogMob(){
   const list=document.getElementById('catListMob');
   const filtered=EJERCICIOS.filter(e=>(!gf||e.grupo===gf)&&(!q||norm(e.nombre).includes(q)));
   const byGroup={}; filtered.forEach(e=>{(byGroup[e.grupo]=byGroup[e.grupo]||[]).push(e);});
-  // populate group filter if empty
   const sel=document.getElementById('groupFilterMob');
   if(sel.options.length<=1){
     const groups=[...new Set(EJERCICIOS.map(e=>e.grupo))];
@@ -1123,14 +1135,25 @@ function renderCatalogMob(){
       html+=`<div class="ex" data-addnombre="${escapeAttr(e.nombre)}">
         <span class="vid ${e.video_url?'yes':'no'}">●</span>
         <span class="nm">${escapeHtml(e.nombre)}</span>
+        <button class="vid-btn ${e.video_url?'':'no'}" data-vidurl="${escapeAttr(e.video_url||'')}" data-vidname="${escapeAttr(e.nombre)}" title="Ver video">🎬</button>
+        <button class="edit" data-edit="${escapeAttr(e.nombre)}" title="Editar">✎</button>
         <button class="add" data-nombre="${escapeAttr(e.nombre)}">＋</button>
       </div>`;
     }
     html+='</div>';
   }
   list.innerHTML=html||'<p class="empty">Sin resultados.</p>';
-  list.querySelectorAll('.add').forEach(b=>b.onclick=e=>{e.stopPropagation();addExerciseToActive(b.dataset.nombre);});
-  list.querySelectorAll('.ex[data-addnombre]').forEach(el=>el.onclick=()=>addExerciseToActive(el.dataset.addnombre));
+  list.querySelectorAll('.add').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    addExerciseToActive(b.dataset.nombre);
+    b.classList.add('ex-flash');setTimeout(()=>b.classList.remove('ex-flash'),400);
+  });
+  list.querySelectorAll('.vid-btn:not(.no)').forEach(b=>b.onclick=e=>{e.stopPropagation();openVidPopover(b,b.dataset.vidurl,b.dataset.vidname);});
+  list.querySelectorAll('.edit').forEach(b=>b.onclick=e=>{e.stopPropagation();openExModal(EJERCICIOS.find(x=>x.nombre===b.dataset.edit));});
+  list.querySelectorAll('.ex[data-addnombre]').forEach(el=>el.onclick=()=>{
+    addExerciseToActive(el.dataset.addnombre);
+    el.classList.add('ex-flash');setTimeout(()=>el.classList.remove('ex-flash'),400);
+  });
 }
 
 /* ---------- helpers ---------- */
